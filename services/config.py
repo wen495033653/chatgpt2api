@@ -265,6 +265,44 @@ class ConfigStore:
         ).strip().rstrip("/")
 
     @property
+    def gpt_accounts_manager_url(self) -> str:
+        value = os.getenv("GPT_ACCOUNTS_MANAGER_URL") or os.getenv("GPT_ACCOUNTS_MANAGER_BASE_URL")
+        if value is None:
+            manager = self.data.get("gpt_accounts_manager")
+            value = manager.get("base_url") if isinstance(manager, dict) else ""
+        return str(value or "").strip().rstrip("/")
+
+    @property
+    def gpt_accounts_manager_sync_interval_seconds(self) -> int:
+        raw = os.getenv("GPT_ACCOUNTS_MANAGER_SYNC_INTERVAL_SECONDS")
+        if raw is None:
+            manager = self.data.get("gpt_accounts_manager")
+            raw = manager.get("sync_interval_seconds") if isinstance(manager, dict) else None
+        try:
+            return max(30, int(raw if raw is not None else 300))
+        except (TypeError, ValueError):
+            return 300
+
+    @property
+    def gpt_accounts_manager_limit(self) -> int:
+        raw = os.getenv("GPT_ACCOUNTS_MANAGER_LIMIT")
+        if raw is None:
+            manager = self.data.get("gpt_accounts_manager")
+            raw = manager.get("limit") if isinstance(manager, dict) else None
+        try:
+            return max(1, min(5000, int(raw if raw is not None else 200)))
+        except (TypeError, ValueError):
+            return 200
+
+    @property
+    def gpt_accounts_manager_plan(self) -> str:
+        value = os.getenv("GPT_ACCOUNTS_MANAGER_PLAN")
+        if value is None:
+            manager = self.data.get("gpt_accounts_manager")
+            value = manager.get("plan") if isinstance(manager, dict) else ""
+        return str(value or "").strip().lower()
+
+    @property
     def app_version(self) -> str:
         try:
             value = VERSION_FILE.read_text(encoding="utf-8").strip()
@@ -284,6 +322,12 @@ class ConfigStore:
         data["sensitive_words"] = self.sensitive_words
         data["ai_review"] = self.ai_review
         data["global_system_prompt"] = self.global_system_prompt
+        data["gpt_accounts_manager"] = {
+            "base_url": self.gpt_accounts_manager_url,
+            "sync_interval_seconds": self.gpt_accounts_manager_sync_interval_seconds,
+            "limit": self.gpt_accounts_manager_limit,
+            "plan": self.gpt_accounts_manager_plan,
+        }
         data["backup"] = self.get_backup_settings()
         data.pop("auth-key", None)
         return data

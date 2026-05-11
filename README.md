@@ -65,6 +65,7 @@ bun run dev
 - `sqlite` - 本地 SQLite 数据库
 - `postgres` - 外部 PostgreSQL（需配置 `DATABASE_URL`）
 - `git` - Git 私有仓库（需配置 `GIT_REPO_URL` 和 `GIT_TOKEN`）
+- `gpt-accounts-manager` - 从 GPT Accounts Manager API 同步账号 token（需配置 `GPT_ACCOUNTS_MANAGER_URL`）
 
 示例：使用 PostgreSQL
 
@@ -72,6 +73,37 @@ bun run dev
 environment:
   - STORAGE_BACKEND=postgres
   - DATABASE_URL=postgresql://user:password@host:5432/dbname
+```
+
+示例：使用 GPT Accounts Manager
+
+```yaml
+environment:
+  - STORAGE_BACKEND=gpt-accounts-manager
+  - GPT_ACCOUNTS_MANAGER_URL=http://gpt-accounts-manager:19318
+  # 可选：只同步指定套餐，例如 plus / pro / team / free
+  # - GPT_ACCOUNTS_MANAGER_PLAN=plus
+  # 可选：单次拉取上限，默认 200，最大 5000
+  # - GPT_ACCOUNTS_MANAGER_LIMIT=500
+```
+
+### GPT Accounts Manager 对接
+
+配置 `GPT_ACCOUNTS_MANAGER_URL` 后，服务会定时调用 GPT Accounts Manager 的
+`GET /api/gpt-accounts/access-tokens`，同步 active ChatGPT Web `access_token` 到本地号池。
+
+```yaml
+environment:
+  - GPT_ACCOUNTS_MANAGER_URL=http://gpt-accounts-manager:19318
+  - GPT_ACCOUNTS_MANAGER_SYNC_INTERVAL_SECONDS=300
+  - GPT_ACCOUNTS_MANAGER_LIMIT=200
+```
+
+也可以手动触发同步：
+
+```bash
+curl -X POST http://localhost:3000/api/accounts/sync/gpt-accounts-manager \
+  -H "Authorization: Bearer <auth-key>"
 ```
 
 ## 功能
@@ -105,7 +137,7 @@ environment:
 - 定时检查限流账号并自动刷新
 - 支持网页端配置全局 HTTP / HTTPS / SOCKS5 / SOCKS5H 代理
 - 支持搜索、筛选、批量刷新、导出、手动编辑和清理账号
-- 支持四种导入方式：本地 CPA JSON 文件导入、远程 CPA 服务器导入、`sub2api` 服务器导入、`access_token` 导入
+- 支持多种导入方式：本地 CPA JSON 文件导入、远程 CPA 服务器导入、`sub2api` 服务器导入、GPT Accounts Manager API 同步、`access_token` 导入
 - 支持在设置页配置 `sub2api` 服务器，筛选并批量导入其中的 OpenAI OAuth 账号
 
 ### 实验性 / 规划中

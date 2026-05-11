@@ -51,6 +51,14 @@ def test_storage():
         print(f"Git 仓库: {repo_url}")
         print(f"Git 分支: {branch}")
         print(f"文件路径: {file_path}")
+
+    elif backend_type in ("gpt-accounts-manager", "gpt_accounts_manager", "accounts-manager", "gam"):
+        base_url = os.getenv("GPT_ACCOUNTS_MANAGER_URL") or os.getenv("GPT_ACCOUNTS_MANAGER_BASE_URL", "")
+        plan = os.getenv("GPT_ACCOUNTS_MANAGER_PLAN", "")
+        limit = os.getenv("GPT_ACCOUNTS_MANAGER_LIMIT", "200")
+        print(f"GPT Accounts Manager: {base_url}")
+        print(f"套餐筛选: {plan or '全部'}")
+        print(f"拉取上限: {limit}")
     
     print("\n" + "=" * 60)
     

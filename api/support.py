@@ -98,6 +98,32 @@ def start_limited_account_watcher(stop_event: Event) -> Thread:
     return thread
 
 
+def start_gpt_accounts_manager_syncer(stop_event: Event) -> Thread | None:
+    external_storage = bool(getattr(account_service.storage, "syncs_external_accounts", False))
+    if not config.gpt_accounts_manager_url and not external_storage:
+        return None
+    interval_seconds = config.gpt_accounts_manager_sync_interval_seconds
+
+    def worker() -> None:
+        while not stop_event.is_set():
+            try:
+                result = account_service.sync_external_accounts() if external_storage else account_service.sync_gpt_accounts_manager()
+                print(
+                    "[gpt-accounts-manager-sync] "
+                    f"received={result.get('received', result.get('total', 0))} "
+                    f"added={result.get('added', 0)} "
+                    f"updated={result.get('updated', 0)} "
+                    f"removed={result.get('removed', 0)}"
+                )
+            except Exception as exc:
+                print(f"[gpt-accounts-manager-sync] fail {exc}")
+            stop_event.wait(interval_seconds)
+
+    thread = Thread(target=worker, name="gpt-accounts-manager-sync", daemon=True)
+    thread.start()
+    return thread
+
+
 def resolve_web_asset(requested_path: str) -> Path | None:
     if not WEB_DIST_DIR.exists():
         return None

@@ -6,6 +6,7 @@ from typing import Any
 from datetime import datetime
 
 from services.config import config
+from services.gpt_accounts_manager import GPTAccountsManagerAccount, fetch_access_tokens
 from services.log_service import (
     LOG_TYPE_ACCOUNT,
     log_service,
@@ -35,6 +36,32 @@ class AccountService:
 
     def _save_accounts(self) -> None:
         self.storage.save_accounts(list(self._accounts.values()))
+
+    def sync_external_accounts(self) -> dict[str, Any]:
+        if not bool(getattr(self.storage, "syncs_external_accounts", False)):
+            return {"synced": False, "added": 0, "removed": 0, "total": len(self.list_accounts())}
+
+        loaded_accounts = self._load_accounts()
+        with self._lock:
+            old_tokens = set(self._accounts)
+            new_tokens = set(loaded_accounts)
+            self._accounts = loaded_accounts
+            self._image_inflight = {
+                token: count
+                for token, count in self._image_inflight.items()
+                if token in new_tokens and int(count or 0) > 0
+            }
+            if self._accounts:
+                self._index %= len(self._accounts)
+            else:
+                self._index = 0
+            self._image_slot_condition.notify_all()
+            return {
+                "synced": True,
+                "added": len(new_tokens - old_tokens),
+                "removed": len(old_tokens - new_tokens),
+                "total": len(new_tokens),
+            }
 
     @staticmethod
     def _is_image_account_available(account: dict) -> bool:
@@ -221,6 +248,98 @@ class AccountService:
             log_service.add(LOG_TYPE_ACCOUNT, f"新增 {added} 个账号，跳过 {skipped} 个",
                             {"added": added, "skipped": skipped})
         return {"added": added, "skipped": skipped, "items": items}
+
+    def sync_gpt_accounts_manager(self) -> dict[str, Any]:
+        base_url = config.gpt_accounts_manager_url
+        if not base_url:
+            return {"enabled": False, "added": 0, "updated": 0, "removed": 0, "items": self.list_accounts()}
+        remote_accounts = fetch_access_tokens(
+            base_url,
+            limit=config.gpt_accounts_manager_limit,
+            plan=config.gpt_accounts_manager_plan,
+        )
+        result = self.upsert_gpt_accounts_manager_accounts(remote_accounts)
+        log_service.add(LOG_TYPE_ACCOUNT, "同步 GPT Accounts Manager 账号",
+                        {key: result.get(key) for key in ("added", "updated", "removed", "received")})
+        return result
+
+    def upsert_gpt_accounts_manager_accounts(self, remote_accounts: list[GPTAccountsManagerAccount]) -> dict[str, Any]:
+        source = "gpt_accounts_manager"
+        source_values = {source, "gpt-accounts-manager"}
+        with self._lock:
+            token_by_remote_id = {
+                str(item.get("gpt_account_id") or ""): token
+                for token, item in self._accounts.items()
+                if item.get("source") in source_values and str(item.get("gpt_account_id") or "")
+            }
+            remote_tokens: set[str] = set()
+            remote_ids: set[str] = set()
+            added = 0
+            updated = 0
+            removed = 0
+            for remote in remote_accounts:
+                access_token = str(remote.access_token or "").strip()
+                if not access_token:
+                    continue
+                remote_tokens.add(access_token)
+                remote_id = str(remote.gpt_account_id or "").strip()
+                if remote_id:
+                    remote_ids.add(remote_id)
+                old_token = token_by_remote_id.get(remote_id) if remote_id else ""
+                if old_token and old_token != access_token:
+                    self._accounts.pop(old_token, None)
+                    self._image_inflight.pop(old_token, None)
+                    removed += 1
+
+                current = self._accounts.get(access_token)
+                if current is None:
+                    added += 1
+                    current = {}
+                else:
+                    updated += 1
+
+                preserved_status = str(current.get("status") or "").strip()
+                next_status = preserved_status if preserved_status == "禁用" else "正常"
+                account = self._normalize_account({
+                    **current,
+                    "access_token": access_token,
+                    "email": remote.email or current.get("email"),
+                    "type": remote.plan or current.get("type") or "free",
+                    "status": next_status,
+                    "quota": current.get("quota", 0),
+                    "image_quota_unknown": True,
+                    "gpt_account_id": remote_id or current.get("gpt_account_id"),
+                    "manager_status": remote.status,
+                    "source": source,
+                })
+                if account is not None:
+                    self._accounts[access_token] = account
+            stale_tokens = [
+                token
+                for token, item in self._accounts.items()
+                if item.get("source") in source_values
+                   and token not in remote_tokens
+                   and str(item.get("gpt_account_id") or "") not in remote_ids
+            ]
+            for token in stale_tokens:
+                self._accounts.pop(token, None)
+                self._image_inflight.pop(token, None)
+                removed += 1
+            if self._accounts:
+                self._index %= len(self._accounts)
+            else:
+                self._index = 0
+            self._image_slot_condition.notify_all()
+            self._save_accounts()
+            items = [dict(item) for item in self._accounts.values()]
+        return {
+            "enabled": True,
+            "received": len(remote_accounts),
+            "added": added,
+            "updated": updated,
+            "removed": removed,
+            "items": items,
+        }
 
     def delete_accounts(self, tokens: list[str]) -> dict:
         target_set = set(token for token in tokens if token)

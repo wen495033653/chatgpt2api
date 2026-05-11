@@ -6,6 +6,7 @@ from pathlib import Path
 from services.storage.base import StorageBackend
 from services.storage.database_storage import DatabaseStorageBackend
 from services.storage.git_storage import GitStorageBackend
+from services.storage.gpt_accounts_manager_storage import GPTAccountsManagerStorageBackend
 from services.storage.json_storage import JSONStorageBackend
 
 
@@ -14,7 +15,7 @@ def create_storage_backend(data_dir: Path) -> StorageBackend:
     根据环境变量创建存储后端
     
     环境变量：
-    - STORAGE_BACKEND: json|sqlite|postgres|git (默认 json)
+    - STORAGE_BACKEND: json|sqlite|postgres|git|gpt-accounts-manager (默认 json)
     - DATABASE_URL: 数据库连接字符串 (用于 sqlite/postgres)
     - GIT_REPO_URL: Git 仓库地址 (用于 git)
     - GIT_TOKEN: Git 访问令牌 (用于 git)
@@ -70,11 +71,33 @@ def create_storage_backend(data_dir: Path) -> StorageBackend:
             auth_keys_file_path=auth_keys_file_path,
             local_cache_dir=cache_dir,
         )
+
+    elif backend_type in ("gpt-accounts-manager", "gpt_accounts_manager", "accounts-manager", "gam"):
+        base_url = (os.getenv("GPT_ACCOUNTS_MANAGER_URL") or os.getenv("GPT_ACCOUNTS_MANAGER_BASE_URL", "")).strip()
+        plan = os.getenv("GPT_ACCOUNTS_MANAGER_PLAN", "").strip()
+        raw_limit = os.getenv("GPT_ACCOUNTS_MANAGER_LIMIT", "200").strip()
+        try:
+            limit = int(raw_limit)
+        except ValueError as exc:
+            raise ValueError("GPT_ACCOUNTS_MANAGER_LIMIT must be an integer") from exc
+        if not base_url:
+            raise ValueError(
+                "GPT_ACCOUNTS_MANAGER_URL is required when using gpt-accounts-manager storage backend. "
+                "Please set GPT_ACCOUNTS_MANAGER_URL environment variable."
+            )
+        print(f"[storage] Using GPT Accounts Manager storage: {base_url}, plan: {plan or 'all'}, limit: {limit}")
+        return GPTAccountsManagerStorageBackend(
+            base_url=base_url,
+            accounts_overlay_path=data_dir / "gpt_accounts_manager_accounts.json",
+            auth_keys_path=data_dir / "auth_keys.json",
+            limit=limit,
+            plan=plan,
+        )
     
     else:
         raise ValueError(
             f"Unknown storage backend: {backend_type}. "
-            f"Supported backends: json, sqlite, postgres, git"
+            f"Supported backends: json, sqlite, postgres, git, gpt-accounts-manager"
         )
 
 

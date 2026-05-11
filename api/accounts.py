@@ -179,6 +179,16 @@ def create_router() -> APIRouter:
             raise HTTPException(status_code=400, detail={"error": "access_tokens is required"})
         return account_service.refresh_accounts(access_tokens)
 
+    @router.post("/api/accounts/sync/gpt-accounts-manager")
+    async def sync_gpt_accounts_manager(authorization: str | None = Header(default=None)):
+        require_admin(authorization)
+        try:
+            if bool(getattr(account_service.storage, "syncs_external_accounts", False)):
+                return await run_in_threadpool(account_service.sync_external_accounts)
+            return await run_in_threadpool(account_service.sync_gpt_accounts_manager)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail={"error": str(exc)}) from exc
+
     @router.post("/api/accounts/update")
     async def update_account(body: AccountUpdateRequest, authorization: str | None = Header(default=None)):
         require_admin(authorization)
