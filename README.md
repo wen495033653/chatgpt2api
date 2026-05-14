@@ -90,7 +90,7 @@ environment:
 ### GPT Accounts Manager 对接
 
 配置 `GPT_ACCOUNTS_MANAGER_URL` 后，服务会定时调用 GPT Accounts Manager 的
-`GET /api/gpt-accounts/access-tokens`，同步 active ChatGPT Web `access_token` 到本地号池。
+`GET /api/gpt-accounts/access-tokens`，同步 Manager 当前 active 且已登录的 ChatGPT Web `access_token` 到本地号池；也支持 Manager 主动按 `gpt_account_id` 推送单账号新增、更新和删除。
 
 ```yaml
 environment:

@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from curl_cffi.requests import Session
 
+from services.gpt_accounts_manager import is_gpt_accounts_manager_account_active, map_gpt_accounts_manager_status
 from services.storage.base import StorageBackend
 from services.storage.json_storage import JSONStorageBackend
 
@@ -44,6 +45,8 @@ class GPTAccountsManagerStorageBackend(StorageBackend):
         for item in self._fetch_remote_accounts():
             if not isinstance(item, dict):
                 continue
+            if not is_gpt_accounts_manager_account_active(item.get("status")):
+                continue
             access_token = str(item.get("access_token") or "").strip()
             if not access_token:
                 continue
@@ -52,7 +55,7 @@ class GPTAccountsManagerStorageBackend(StorageBackend):
                 **overlay,
                 "access_token": access_token,
                 "type": str(item.get("plan") or overlay.get("type") or "free").strip() or "free",
-                "status": str(overlay.get("status") or self._map_status(item.get("status"))),
+                "status": map_gpt_accounts_manager_status(item.get("status")),
                 "quota": int(overlay.get("quota") or 0),
                 "image_quota_unknown": bool(overlay.get("image_quota_unknown", True)),
                 "email": str(item.get("email") or overlay.get("email") or "").strip() or None,
@@ -129,15 +132,6 @@ class GPTAccountsManagerStorageBackend(StorageBackend):
         if not isinstance(accounts, list):
             raise RuntimeError("gpt accounts manager accounts payload is invalid")
         return accounts
-
-    @staticmethod
-    def _map_status(value: object) -> str:
-        status = str(value or "").strip().lower()
-        if status == "active":
-            return "正常"
-        if status in {"account_deactivated", "unauthorized", "token_invalidated"}:
-            return "异常"
-        return "正常"
 
     @staticmethod
     def _normalize_time(value: object) -> str | None:

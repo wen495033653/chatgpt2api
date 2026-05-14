@@ -15,6 +15,7 @@ from api.support import (
 )
 from services.account_service import account_service
 from services.cpa_service import cpa_config, cpa_import_service, list_remote_files
+from services.gpt_accounts_manager import GPTAccountsManagerAccount
 from services.sub2api_service import (
     list_remote_accounts as sub2api_list_remote_accounts,
     list_remote_groups as sub2api_list_remote_groups,
@@ -44,6 +45,14 @@ class AccountDeleteRequest(BaseModel):
 
 class AccountRefreshRequest(BaseModel):
     access_tokens: list[str] = Field(default_factory=list)
+
+
+class GPTAccountsManagerAccountSyncRequest(BaseModel):
+    gpt_account_id: str = ""
+    access_token: str = ""
+    email: str = ""
+    plan: str = "free"
+    status: str = "active"
 
 
 class AccountUpdateRequest(BaseModel):
@@ -186,6 +195,40 @@ def create_router() -> APIRouter:
             if bool(getattr(account_service.storage, "syncs_external_accounts", False)):
                 return await run_in_threadpool(account_service.sync_external_accounts)
             return await run_in_threadpool(account_service.sync_gpt_accounts_manager)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail={"error": str(exc)}) from exc
+
+    @router.post("/api/accounts/sync/gpt-accounts-manager/account")
+    async def sync_gpt_accounts_manager_account(
+            body: GPTAccountsManagerAccountSyncRequest,
+            authorization: str | None = Header(default=None),
+    ):
+        require_admin(authorization)
+        try:
+            from services.gpt_accounts_manager import GPTAccountsManagerAccount
+
+            return await run_in_threadpool(
+                account_service.upsert_gpt_accounts_manager_account,
+                GPTAccountsManagerAccount(
+                    access_token=body.access_token,
+                    email=body.email,
+                    plan=body.plan,
+                    status=body.status,
+                    gpt_account_id=body.gpt_account_id,
+                ),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail={"error": str(exc)}) from exc
+
+    @router.delete("/api/accounts/sync/gpt-accounts-manager/{gpt_account_id}")
+    async def delete_gpt_accounts_manager_account(gpt_account_id: str, authorization: str | None = Header(default=None)):
+        require_admin(authorization)
+        try:
+            return await run_in_threadpool(account_service.delete_gpt_accounts_manager_account, gpt_account_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
         except Exception as exc:
             raise HTTPException(status_code=502, detail={"error": str(exc)}) from exc
 

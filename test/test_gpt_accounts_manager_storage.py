@@ -73,11 +73,49 @@ class GPTAccountsManagerStorageTests(unittest.TestCase):
             self.assertEqual(len(accounts), 1)
             self.assertEqual(accounts[0]["access_token"], "token-1")
             self.assertEqual(accounts[0]["type"], "plus")
-            self.assertEqual(accounts[0]["status"], "限流")
+            self.assertEqual(accounts[0]["status"], "正常")
             self.assertEqual(accounts[0]["quota"], 3)
             self.assertEqual(accounts[0]["email"], "user@example.com")
             self.assertEqual(accounts[0]["gpt_account_id"], 123)
             self.assertEqual(accounts[0]["source"], "gpt-accounts-manager")
+            self.assertEqual(session.calls[0]["params"], {"limit": 50})
+            self.assertTrue(session.closed)
+
+    def test_load_accounts_skips_inactive_remote_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base = Path(tmp_dir)
+            payload = {
+                "status": "ok",
+                "accounts": [
+                    {
+                        "id": 123,
+                        "email": "user@example.com",
+                        "plan": "plus",
+                        "status": "account_deactivated",
+                        "access_token": "token-1",
+                        "updated_at": "2026-05-11T08:00:00Z",
+                    }
+                ],
+            }
+            session = FakeSession(payload)
+            backend = GPTAccountsManagerStorageBackend(
+                base_url="http://gpt-accounts-manager:19318/",
+                accounts_overlay_path=base / "accounts.json",
+                auth_keys_path=base / "auth_keys.json",
+                limit=50,
+                session_factory=lambda: session,
+            )
+            backend.save_accounts([
+                {
+                    "access_token": "token-1",
+                    "status": "正常",
+                    "quota": 3,
+                }
+            ])
+
+            accounts = backend.load_accounts()
+
+            self.assertEqual(accounts, [])
             self.assertEqual(session.calls[0]["params"], {"limit": 50})
             self.assertTrue(session.closed)
 

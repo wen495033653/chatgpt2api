@@ -6,7 +6,7 @@ from typing import Any
 from datetime import datetime
 
 from services.config import config
-from services.gpt_accounts_manager import GPTAccountsManagerAccount, fetch_access_tokens
+from services.gpt_accounts_manager import GPTAccountsManagerAccount, fetch_access_tokens, is_gpt_accounts_manager_account_active
 from services.log_service import (
     LOG_TYPE_ACCOUNT,
     log_service,
@@ -265,27 +265,44 @@ class AccountService:
 
     def upsert_gpt_accounts_manager_accounts(self, remote_accounts: list[GPTAccountsManagerAccount]) -> dict[str, Any]:
         source = "gpt_accounts_manager"
-        source_values = {source, "gpt-accounts-manager"}
         with self._lock:
             token_by_remote_id = {
                 str(item.get("gpt_account_id") or ""): token
                 for token, item in self._accounts.items()
-                if item.get("source") in source_values and str(item.get("gpt_account_id") or "")
+                if str(item.get("gpt_account_id") or "")
             }
             remote_tokens: set[str] = set()
             remote_ids: set[str] = set()
             added = 0
             updated = 0
             removed = 0
+
+            def remove_manager_token(token: str) -> None:
+                nonlocal removed
+                if not token:
+                    return
+                current = self._accounts.get(token)
+                if current is None:
+                    return
+                self._accounts.pop(token, None)
+                self._image_inflight.pop(token, None)
+                removed += 1
+
             for remote in remote_accounts:
                 access_token = str(remote.access_token or "").strip()
                 if not access_token:
                     continue
-                remote_tokens.add(access_token)
                 remote_id = str(remote.gpt_account_id or "").strip()
+                old_token = token_by_remote_id.get(remote_id) if remote_id else ""
+
+                if not is_gpt_accounts_manager_account_active(remote.status):
+                    remove_manager_token(old_token)
+                    remove_manager_token(access_token)
+                    continue
+
+                remote_tokens.add(access_token)
                 if remote_id:
                     remote_ids.add(remote_id)
-                old_token = token_by_remote_id.get(remote_id) if remote_id else ""
                 if old_token and old_token != access_token:
                     self._accounts.pop(old_token, None)
                     self._image_inflight.pop(old_token, None)
@@ -298,14 +315,12 @@ class AccountService:
                 else:
                     updated += 1
 
-                preserved_status = str(current.get("status") or "").strip()
-                next_status = preserved_status if preserved_status == "禁用" else "正常"
                 account = self._normalize_account({
                     **current,
                     "access_token": access_token,
                     "email": remote.email or current.get("email"),
                     "type": remote.plan or current.get("type") or "free",
-                    "status": next_status,
+                    "status": "正常",
                     "quota": current.get("quota", 0),
                     "image_quota_unknown": True,
                     "gpt_account_id": remote_id or current.get("gpt_account_id"),
@@ -317,7 +332,7 @@ class AccountService:
             stale_tokens = [
                 token
                 for token, item in self._accounts.items()
-                if item.get("source") in source_values
+                if str(item.get("gpt_account_id") or "")
                    and token not in remote_tokens
                    and str(item.get("gpt_account_id") or "") not in remote_ids
             ]
@@ -337,6 +352,103 @@ class AccountService:
             "received": len(remote_accounts),
             "added": added,
             "updated": updated,
+            "removed": removed,
+            "items": items,
+        }
+
+    def upsert_gpt_accounts_manager_account(self, remote: GPTAccountsManagerAccount) -> dict[str, Any]:
+        remote_id = str(remote.gpt_account_id or "").strip()
+        if not remote_id:
+            raise ValueError("gpt_account_id is required")
+        access_token = str(remote.access_token or "").strip()
+        if not is_gpt_accounts_manager_account_active(remote.status):
+            result = self.delete_gpt_accounts_manager_account(remote_id)
+            return {
+                "enabled": True,
+                "action": "removed",
+                "gpt_account_id": remote_id,
+                "removed": result["removed"],
+                "items": result["items"],
+            }
+        if not access_token:
+            raise ValueError("access_token is required")
+
+        with self._lock:
+            old_tokens = [
+                token
+                for token, item in self._accounts.items()
+                if str(item.get("gpt_account_id") or "").strip() == remote_id and token != access_token
+            ]
+            removed = 0
+            for token in old_tokens:
+                self._accounts.pop(token, None)
+                self._image_inflight.pop(token, None)
+                removed += 1
+
+            current = self._accounts.get(access_token)
+            added = current is None and not old_tokens
+            if current is None:
+                current = {}
+            account = self._normalize_account({
+                **current,
+                "access_token": access_token,
+                "email": remote.email or current.get("email"),
+                "type": remote.plan or current.get("type") or "free",
+                "status": "正常",
+                "quota": current.get("quota", 0),
+                "image_quota_unknown": True,
+                "gpt_account_id": remote_id,
+                "manager_status": remote.status,
+                "source": "gpt_accounts_manager",
+            })
+            if account is None:
+                raise ValueError("account payload is invalid")
+            self._accounts[access_token] = account
+            if self._accounts:
+                self._index %= len(self._accounts)
+            else:
+                self._index = 0
+            self._image_slot_condition.notify_all()
+            self._save_accounts()
+            items = [dict(item) for item in self._accounts.values()]
+        return {
+            "enabled": True,
+            "action": "added" if added else "updated",
+            "gpt_account_id": remote_id,
+            "added": 1 if added else 0,
+            "updated": 0 if added else 1,
+            "removed": removed,
+            "item": account,
+            "items": items,
+        }
+
+    def delete_gpt_accounts_manager_account(self, gpt_account_id: str) -> dict[str, Any]:
+        remote_id = str(gpt_account_id or "").strip()
+        if not remote_id:
+            raise ValueError("gpt_account_id is required")
+        with self._lock:
+            target_tokens = [
+                token
+                for token, item in self._accounts.items()
+                if str(item.get("gpt_account_id") or "").strip() == remote_id
+            ]
+            removed = 0
+            for token in target_tokens:
+                self._accounts.pop(token, None)
+                self._image_inflight.pop(token, None)
+                removed += 1
+            if removed:
+                if self._accounts:
+                    self._index %= len(self._accounts)
+                else:
+                    self._index = 0
+                self._save_accounts()
+                self._image_slot_condition.notify_all()
+            items = [dict(item) for item in self._accounts.values()]
+        return {
+            "enabled": True,
+            "action": "removed",
+            "gpt_account_id": remote_id,
             "removed": removed,
             "items": items,
         }

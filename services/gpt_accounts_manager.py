@@ -15,7 +15,22 @@ class GPTAccountsManagerAccount:
     gpt_account_id: str = ""
 
 
-def fetch_access_tokens(base_url: str, *, limit: int, plan: str = "", timeout: int = 30) -> list[GPTAccountsManagerAccount]:
+def is_gpt_accounts_manager_account_active(value: object) -> bool:
+    return str(value or "").strip().lower() == "active"
+
+
+def map_gpt_accounts_manager_status(value: object) -> str:
+    return "正常" if is_gpt_accounts_manager_account_active(value) else "禁用"
+
+
+def fetch_access_tokens(
+    base_url: str,
+    *,
+    limit: int,
+    plan: str = "",
+    include_inactive: bool = False,
+    timeout: int = 30,
+) -> list[GPTAccountsManagerAccount]:
     base_url = str(base_url or "").strip().rstrip("/")
     if not base_url:
         raise ValueError("GPT Accounts Manager URL is required")
@@ -25,6 +40,8 @@ def fetch_access_tokens(base_url: str, *, limit: int, plan: str = "", timeout: i
     params: dict[str, Any] = {"limit": limit}
     if str(plan or "").strip():
         params["plan"] = str(plan).strip()
+    if include_inactive:
+        params["include_inactive"] = "true"
     response = requests.get(
         f"{base_url}/api/gpt-accounts/access-tokens",
         params=params,
