@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
 
+from services.storage.factory import create_storage_backend
 from services.storage.gpt_accounts_manager_storage import GPTAccountsManagerStorageBackend
 
 
@@ -158,6 +160,27 @@ class GPTAccountsManagerStorageTests(unittest.TestCase):
             self.assertEqual(backend.limit, 0)
             self.assertEqual(session.calls[0]["params"], {})
             self.assertTrue(session.closed)
+
+    def test_factory_defaults_to_unlimited(self) -> None:
+        old_values = {
+            key: os.environ.get(key)
+            for key in ("STORAGE_BACKEND", "GPT_ACCOUNTS_MANAGER_URL", "GPT_ACCOUNTS_MANAGER_LIMIT")
+        }
+        try:
+            os.environ["STORAGE_BACKEND"] = "gpt-accounts-manager"
+            os.environ["GPT_ACCOUNTS_MANAGER_URL"] = "http://gpt-accounts-manager:19318"
+            os.environ.pop("GPT_ACCOUNTS_MANAGER_LIMIT", None)
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                backend = create_storage_backend(Path(tmp_dir))
+
+            self.assertIsInstance(backend, GPTAccountsManagerStorageBackend)
+            self.assertEqual(backend.limit, 0)
+        finally:
+            for key, value in old_values.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
 
     def test_health_check_reports_remote_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

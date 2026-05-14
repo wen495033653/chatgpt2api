@@ -75,7 +75,7 @@ def create_storage_backend(data_dir: Path) -> StorageBackend:
     elif backend_type in ("gpt-accounts-manager", "gpt_accounts_manager", "accounts-manager", "gam"):
         base_url = (os.getenv("GPT_ACCOUNTS_MANAGER_URL") or os.getenv("GPT_ACCOUNTS_MANAGER_BASE_URL", "")).strip()
         plan = os.getenv("GPT_ACCOUNTS_MANAGER_PLAN", "").strip()
-        raw_limit = os.getenv("GPT_ACCOUNTS_MANAGER_LIMIT", "200").strip()
+        raw_limit = os.getenv("GPT_ACCOUNTS_MANAGER_LIMIT", "0").strip()
         try:
             limit = int(raw_limit)
         except ValueError as exc:
