@@ -36,5 +36,5 @@ services:
     # GPT Accounts Manager 对接 (可选)
     #   GPT_ACCOUNTS_MANAGER_URL: http://gpt-accounts-manager:19318
     #   GPT_ACCOUNTS_MANAGER_SYNC_INTERVAL_SECONDS: 300
-    #   GPT_ACCOUNTS_MANAGER_LIMIT: 200
+    #   GPT_ACCOUNTS_MANAGER_LIMIT: 500
     #   GPT_ACCOUNTS_MANAGER_PLAN:
