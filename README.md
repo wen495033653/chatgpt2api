@@ -83,7 +83,7 @@ environment:
   - GPT_ACCOUNTS_MANAGER_URL=http://gpt-accounts-manager:19318
   # 可选：只同步指定套餐，例如 plus / pro / team / free
   # - GPT_ACCOUNTS_MANAGER_PLAN=plus
-  # 可选：单次拉取上限，默认 200，最大 5000
+  # 可选：单次拉取数量，默认 200
   # - GPT_ACCOUNTS_MANAGER_LIMIT=500
 ```
 

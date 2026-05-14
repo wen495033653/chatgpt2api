@@ -290,7 +290,7 @@ class ConfigStore:
             manager = self.data.get("gpt_accounts_manager")
             raw = manager.get("limit") if isinstance(manager, dict) else None
         try:
-            return max(1, min(5000, int(raw if raw is not None else 200)))
+            return max(1, int(raw if raw is not None else 200))
         except (TypeError, ValueError):
             return 200
 

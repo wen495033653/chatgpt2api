@@ -29,7 +29,7 @@ class GPTAccountsManagerStorageBackend(StorageBackend):
         self.base_url = base_url.strip().rstrip("/")
         if not self.base_url:
             raise ValueError("GPT_ACCOUNTS_MANAGER_URL is required")
-        self.limit = max(1, min(5000, int(limit or 200)))
+        self.limit = max(1, int(limit or 200))
         self.plan = str(plan or "").strip()
         self._local = JSONStorageBackend(accounts_overlay_path, auth_keys_path)
         self._session_factory = session_factory or Session
