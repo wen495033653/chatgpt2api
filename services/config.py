@@ -289,10 +289,12 @@ class ConfigStore:
         if raw is None:
             manager = self.data.get("gpt_accounts_manager")
             raw = manager.get("limit") if isinstance(manager, dict) else None
+        if raw is None:
+            return 0
         try:
-            return max(1, int(raw if raw is not None else 200))
+            return max(0, int(raw))
         except (TypeError, ValueError):
-            return 200
+            return 0
 
     @property
     def gpt_accounts_manager_plan(self) -> str:

@@ -47,6 +47,14 @@ class GPTAccountsManagerClientTests(unittest.TestCase):
         self.assertEqual(accounts[0].status, "active")
         self.assertEqual(accounts[0].gpt_account_id, "123")
 
+    def test_fetch_access_tokens_omits_limit_when_unlimited(self) -> None:
+        with patch("services.gpt_accounts_manager.requests.get", return_value=FakeResponse()) as get:
+            accounts = fetch_access_tokens("http://manager/", limit=0)
+
+        get.assert_called_once()
+        self.assertEqual(get.call_args.kwargs["params"], {})
+        self.assertEqual(len(accounts), 1)
+
     def test_import_sync_removes_inactive_and_stale_manager_accounts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             base = Path(tmp_dir)

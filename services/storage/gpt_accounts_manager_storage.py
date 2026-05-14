@@ -29,7 +29,7 @@ class GPTAccountsManagerStorageBackend(StorageBackend):
         self.base_url = base_url.strip().rstrip("/")
         if not self.base_url:
             raise ValueError("GPT_ACCOUNTS_MANAGER_URL is required")
-        self.limit = max(1, int(limit or 200))
+        self.limit = max(0, int(limit or 0))
         self.plan = str(plan or "").strip()
         self._local = JSONStorageBackend(accounts_overlay_path, auth_keys_path)
         self._session_factory = session_factory or Session
@@ -105,7 +105,10 @@ class GPTAccountsManagerStorageBackend(StorageBackend):
         }
 
     def _fetch_remote_accounts(self, limit: int | None = None) -> list[dict[str, Any]]:
-        params: dict[str, object] = {"limit": limit or self.limit}
+        params: dict[str, object] = {}
+        effective_limit = self.limit if limit is None else limit
+        if effective_limit > 0:
+            params["limit"] = effective_limit
         if self.plan:
             params["plan"] = self.plan
         session = self._session_factory()

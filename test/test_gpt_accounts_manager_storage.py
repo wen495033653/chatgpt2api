@@ -139,6 +139,26 @@ class GPTAccountsManagerStorageTests(unittest.TestCase):
             self.assertEqual(session.calls[0]["params"], {"limit": 6001})
             self.assertTrue(session.closed)
 
+    def test_load_accounts_omits_limit_when_unlimited(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base = Path(tmp_dir)
+            payload = {"status": "ok", "accounts": []}
+            session = FakeSession(payload)
+            backend = GPTAccountsManagerStorageBackend(
+                base_url="http://gpt-accounts-manager:19318/",
+                accounts_overlay_path=base / "accounts.json",
+                auth_keys_path=base / "auth_keys.json",
+                limit=0,
+                session_factory=lambda: session,
+            )
+
+            accounts = backend.load_accounts()
+
+            self.assertEqual(accounts, [])
+            self.assertEqual(backend.limit, 0)
+            self.assertEqual(session.calls[0]["params"], {})
+            self.assertTrue(session.closed)
+
     def test_health_check_reports_remote_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             base = Path(tmp_dir)

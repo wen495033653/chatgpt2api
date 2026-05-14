@@ -78,6 +78,26 @@ class ConfigLoadingTests(unittest.TestCase):
             else:
                 module.os.environ["CHATGPT2API_AUTH_KEY"] = old_auth_key
 
+    def test_load_gpt_accounts_manager_limit_defaults_to_unlimited(self) -> None:
+        module = self.config_module
+        old_limit = module.os.environ.get("GPT_ACCOUNTS_MANAGER_LIMIT")
+        old_auth_key = module.os.environ.get("CHATGPT2API_AUTH_KEY")
+        try:
+            module.os.environ.pop("GPT_ACCOUNTS_MANAGER_LIMIT", None)
+            module.os.environ["CHATGPT2API_AUTH_KEY"] = "test-auth"
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                store = module.ConfigStore(Path(tmp_dir) / "config.json")
+                self.assertEqual(store.gpt_accounts_manager_limit, 0)
+        finally:
+            if old_limit is None:
+                module.os.environ.pop("GPT_ACCOUNTS_MANAGER_LIMIT", None)
+            else:
+                module.os.environ["GPT_ACCOUNTS_MANAGER_LIMIT"] = old_limit
+            if old_auth_key is None:
+                module.os.environ.pop("CHATGPT2API_AUTH_KEY", None)
+            else:
+                module.os.environ["CHATGPT2API_AUTH_KEY"] = old_auth_key
+
 
 if __name__ == "__main__":
     unittest.main()

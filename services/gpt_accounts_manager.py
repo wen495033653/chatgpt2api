@@ -34,10 +34,12 @@ def fetch_access_tokens(
     base_url = str(base_url or "").strip().rstrip("/")
     if not base_url:
         raise ValueError("GPT Accounts Manager URL is required")
-    if limit <= 0:
-        raise ValueError("GPT Accounts Manager limit must be positive")
+    if limit < 0:
+        raise ValueError("GPT Accounts Manager limit must not be negative")
 
-    params: dict[str, Any] = {"limit": limit}
+    params: dict[str, Any] = {}
+    if limit > 0:
+        params["limit"] = limit
     if str(plan or "").strip():
         params["plan"] = str(plan).strip()
     if include_inactive:
