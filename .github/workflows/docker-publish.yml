@@ -40,6 +40,10 @@ jobs:
           CHATGPT2API_AUTH_KEY: test-auth
         run: uv run python -m unittest test.test_gpt_accounts_manager test.test_gpt_accounts_manager_storage test.test_config
 
+      - name: Get upstream release metadata
+        id: upstream
+        run: python3 .github/scripts/get_upstream_release.py
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -60,6 +64,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          labels: |
+            io.wen.upstream.repo=git@github.com:basketikun/chatgpt2api.git
+            io.wen.upstream.tag=${{ steps.upstream.outputs.tag }}
+            io.wen.upstream.revision=${{ steps.upstream.outputs.revision }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
             type=ref,event=branch
