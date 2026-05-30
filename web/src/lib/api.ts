@@ -2,7 +2,7 @@ import { httpRequest, request } from "@/lib/request";
 
 export type AccountType = string;
 export type AccountStatus = "正常" | "限流" | "异常" | "禁用";
-export type ImageModel = "gpt-image-2" | "codex-gpt-image-2";
+export type ImageModel = string;
 export type AuthRole = "admin" | "user";
 export type ImageStorageMode = "local" | "webdav" | "both";
 
@@ -19,6 +19,7 @@ export type ImageStorageSettings = {
 export type Account = {
   access_token: string;
   type: AccountType;
+  source_type?: string | null;
   status: AccountStatus;
   quota: number;
   image_quota_unknown?: boolean;
@@ -34,10 +35,35 @@ export type Account = {
   success: number;
   fail: number;
   last_used_at?: string | null;
+  proxy?: string | null;
+};
+
+export type AccountImportPayload = {
+  access_token: string;
+  accessToken?: string;
+  type?: string;
+  export_type?: string;
+  source_type?: string;
+  [key: string]: unknown;
+};
+
+export type Model = {
+  id: string;
+  object: string;
+  created: number;
+  owned_by: string;
+  permission: unknown[];
+  root: string;
+  parent: string | null;
 };
 
 type AccountListResponse = {
   items: Account[];
+};
+
+type ModelListResponse = {
+  object: string;
+  data: Model[];
 };
 
 type AccountMutationResponse = {
@@ -267,10 +293,35 @@ export async function fetchAccounts() {
   return httpRequest<AccountListResponse>("/api/accounts");
 }
 
-export async function createAccounts(tokens: string[]) {
+export async function fetchModels() {
+  return httpRequest<ModelListResponse>("/v1/models");
+}
+
+export async function createAccounts(tokens: string[], accounts: AccountImportPayload[] = []) {
   return httpRequest<AccountMutationResponse>("/api/accounts", {
     method: "POST",
-    body: { tokens },
+    body: { tokens, accounts },
+  });
+}
+
+export type OAuthLoginStartResponse = {
+  session_id: string;
+  authorize_url: string;
+  expires_in: string;
+  redirect_uri_prefix: string;
+};
+
+export async function startOAuthLogin(emailHint?: string) {
+  return httpRequest<OAuthLoginStartResponse>("/api/accounts/oauth/start", {
+    method: "POST",
+    body: { email_hint: emailHint ?? "" },
+  });
+}
+
+export async function finishOAuthLogin(sessionId: string, callback: string) {
+  return httpRequest<AccountMutationResponse>("/api/accounts/oauth/finish", {
+    method: "POST",
+    body: { session_id: sessionId, callback },
   });
 }
 
@@ -294,6 +345,7 @@ export async function updateAccount(
     type?: AccountType;
     status?: AccountStatus;
     quota?: number;
+    proxy?: string;
   },
 ) {
   return httpRequest<AccountUpdateResponse>("/api/accounts/update", {
