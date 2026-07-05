@@ -26,6 +26,7 @@ def main():
 
     req = urllib.request.Request(webhook_url, data=data, method="POST")
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "GitHub-Actions-chatgpt2api-Deploy/1.0")
     req.add_header("X-GitHub-Event", "deploy")
     req.add_header("X-GitHub-Delivery", delivery_id)
     req.add_header("X-Hub-Signature-256", signature)
