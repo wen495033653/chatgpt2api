@@ -557,9 +557,9 @@ export function AccountImportDialog({ disabled, onImported }: AccountImportDialo
             <div className="font-medium text-stone-800">操作步骤</div>
             <ol className="list-decimal pl-5 space-y-1">
               <li>（可选）填写你 ChatGPT 账号的邮箱，登录页会预填。</li>
-              <li>点击下方"打开授权页面"，在新标签里登录自己的 ChatGPT 账号。</li>
+              <li>点击下方“打开授权页面”，在新标签里登录自己的 ChatGPT 账号。</li>
               <li>登录完成后浏览器会跳到 <code className="rounded bg-stone-200 px-1">platform.openai.com/auth/callback?code=...</code>。立刻从地址栏复制整段 URL（或开 F12 在 Network 里抓到 callback 那一行，右键 Copy → Copy URL）。</li>
-              <li>把 callback URL 粘到下面输入框，点"完成导入"。</li>
+              <li>把 callback URL 粘到下面输入框，点“完成导入”。</li>
             </ol>
           </div>
           <div className="space-y-2">
@@ -634,7 +634,7 @@ export function AccountImportDialog({ disabled, onImported }: AccountImportDialo
             <div className="font-medium">注意</div>
             <div>
               授权码（code）只能使用一次。如果浏览器的 callback 页加载完成、显示了 OpenAI 的错误页，那 code 大概率已经被消耗，
-              请点击"重新生成"再走一次。整个流程在 10 分钟内完成即可。
+              请点击“重新生成”再走一次。整个流程在 10 分钟内完成即可。
             </div>
           </div>
         </div>

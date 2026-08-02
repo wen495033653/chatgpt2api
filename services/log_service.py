@@ -31,7 +31,7 @@ class LogService:
     @staticmethod
     def _legacy_id(raw_line: str, line_number: int) -> str:
         payload = f"{line_number}:{raw_line}".encode("utf-8", errors="ignore")
-        return hashlib.sha1(payload).hexdigest()[:24]
+        return hashlib.sha1(payload, usedforsecurity=False).hexdigest()[:24]
 
     def _parse_line(self, raw_line: str, line_number: int) -> dict[str, Any] | None:
         try:

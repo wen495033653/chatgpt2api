@@ -35,10 +35,30 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --frozen
 
-      - name: Run focused tests
+      - name: Run tests
         env:
           CHATGPT2API_AUTH_KEY: test-auth
-        run: uv run python -m unittest test.test_gpt_accounts_manager test.test_gpt_accounts_manager_storage test.test_config
+        run: >-
+          uv run pytest -q
+          test/test_gpt_accounts_manager.py
+          test/test_gpt_accounts_manager_storage.py
+          test/test_config.py
+          test/test_database_storage.py
+          test/test_image_remove_conversation.py
+          test/test_model_catalog_service.py
+          test/test_text_model_routing.py
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.13"
+
+      - name: Verify frontend
+        working-directory: web
+        run: |
+          bun install --frozen-lockfile
+          bun run lint
+          bun run typecheck
 
       - name: Get upstream release metadata
         id: upstream

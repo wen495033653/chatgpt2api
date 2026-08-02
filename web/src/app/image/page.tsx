@@ -591,13 +591,14 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
   }, []);
 
   useEffect(() => {
+    const scrollPositions = scrollPositionsRef.current;
     return () => {
       if (scrollRafRef.current !== null) {
         window.cancelAnimationFrame(scrollRafRef.current);
       }
       if (scrollSaveTimerRef.current !== null) {
         clearTimeout(scrollSaveTimerRef.current);
-        saveScrollPositions(scrollPositionsRef.current);
+        saveScrollPositions(scrollPositions);
       }
     };
   }, []);
@@ -666,16 +667,18 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
   }, [loadHistory]);
 
   useEffect(() => {
+    const resultsViewport = resultsViewportRef.current;
+    const scrollPositions = scrollPositionsRef.current;
     loadCancelledRef.current = false;
     void loadHistory();
     return () => {
       loadCancelledRef.current = true;
       // 组件卸载时保存当前滚动位置到 sessionStorage
-      const element = resultsViewportRef.current;
+      const element = resultsViewport;
       const convId = lastConversationIdRef.current;
       if (element && convId) {
-        scrollPositionsRef.current.set(convId, element.scrollTop);
-        saveScrollPositions(scrollPositionsRef.current);
+        scrollPositions.set(convId, element.scrollTop);
+        saveScrollPositions(scrollPositions);
       }
       activeConversationQueueIds.clear();
       if (pollAbortController) {
@@ -783,7 +786,7 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
         isRestoringScrollRef.current = true;
       }
     }
-  }, [selectedConversation?.id]);
+  }, [selectedConversation]);
 
   // 恢复滚动位置或跟随最新内容
   useEffect(() => {
@@ -836,7 +839,7 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
 
     const btn = scrollToLatestBtnRef.current;
     if (btn) btn.style.display = "";
-  }, [selectedConversation?.id, selectedConversation?.updatedAt, selectedConversation?.turns.length, scrollResultsToLatest]);
+  }, [selectedConversation, scrollResultsToLatest]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1180,7 +1183,6 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
       };
     });
 
-  /* eslint-disable react-hooks/preserve-manual-memoization */
   const runConversationQueue = useCallback(
     async (conversationId: string) => {
       if (activeConversationQueueIds.has(conversationId)) {
@@ -1349,7 +1351,6 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
     },
     [loadQuota, updateConversation],
   );
-  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const handleRegenerateTurn = useCallback(
     async (conversationId: string, turnId: string) => {

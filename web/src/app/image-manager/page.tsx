@@ -112,7 +112,7 @@ function ImageManagerContent() {
   const currentPageSelected = currentRows.length > 0 && currentRows.every((item) => selectedSet.has(imageKey(item)));
   const allSelected = filteredItems.length > 0 && filteredItems.every((item) => selectedSet.has(imageKey(item)));
 
-  const loadImages = async () => {
+  const loadImages = useCallback(async () => {
     setIsLoading(true);
     try {
       const [data, tagsData] = await Promise.all([
@@ -128,7 +128,7 @@ function ImageManagerContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [endDate, startDate]);
 
   const closeDialog = useCallback(() => {
     setDialogVisible(false);
@@ -270,7 +270,7 @@ function ImageManagerContent() {
 
   useEffect(() => {
     void loadImages();
-  }, [startDate, endDate]);
+  }, [loadImages]);
 
   return (
     <section className="space-y-5">
@@ -700,7 +700,7 @@ function ImageManagerContent() {
             <DialogTitle>删除标签</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-stone-600">
-            确定要删除标签 <span className="font-semibold">"{tagDeleteTarget}"</span> 吗？将从所有图片中移除该标签。
+            确定要删除标签 <span className="font-semibold">“{tagDeleteTarget}”</span> 吗？将从所有图片中移除该标签。
           </p>
           <DialogFooter>
             <Button variant="outline" className="rounded-xl" onClick={() => setTagDeleteTarget(null)}>

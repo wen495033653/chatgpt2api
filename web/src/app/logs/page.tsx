@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, ImageIcon, LoaderCircle, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -74,7 +74,7 @@ function LogsContent() {
   const currentPageSelected = currentRows.length > 0 && currentRows.every((item) => selectedSet.has(item.id));
   const allSelected = items.length > 0 && items.every((item) => selectedSet.has(item.id));
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await fetchSystemLogs({ type, start_date: startDate, end_date: endDate });
@@ -86,7 +86,7 @@ function LogsContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [endDate, startDate, type]);
 
   const clearFilters = () => {
     setStartDate("");
@@ -131,7 +131,7 @@ function LogsContent() {
 
   useEffect(() => {
     void loadLogs();
-  }, [type, startDate, endDate]);
+  }, [loadLogs]);
 
   return (
     <section className="space-y-5">

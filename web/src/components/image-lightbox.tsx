@@ -87,7 +87,12 @@ function normalizeTransform(transform: ImageTransform) {
   };
 }
 
-export function ImageLightbox({
+export function ImageLightbox(props: ImageLightboxProps) {
+  const currentId = props.images[props.currentIndex]?.id ?? "none";
+  return <ImageLightboxContent key={`${props.open ? "open" : "closed"}:${currentId}`} {...props} />;
+}
+
+function ImageLightboxContent({
   images,
   currentIndex,
   open,
@@ -151,10 +156,6 @@ export function ImageLightbox({
   const goNext = useCallback(() => {
     if (hasNext) onIndexChange(currentIndex + 1);
   }, [hasNext, currentIndex, onIndexChange]);
-
-  useEffect(() => {
-    resetTransform();
-  }, [current?.id, open, resetTransform]);
 
   useEffect(() => {
     return () => {

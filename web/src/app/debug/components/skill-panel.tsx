@@ -15,9 +15,29 @@ export function SkillPanel() {
   const [authKey, setAuthKey] = useState("");
 
   useEffect(() => {
-    setBrowserBaseUrl(window.location.origin);
-    void fetchSettingsConfig().then((data) => setConfiguredBaseUrl(String(data.config.base_url || "").replace(/\/$/, ""))).catch(() => undefined);
-    void getStoredAuthSession().then((session) => setAuthKey(session?.key || ""));
+    let active = true;
+    const load = async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setBrowserBaseUrl(window.location.origin);
+
+      const [settingsResult, sessionResult] = await Promise.allSettled([
+        fetchSettingsConfig(),
+        getStoredAuthSession(),
+      ]);
+      if (!active) return;
+      if (settingsResult.status === "fulfilled") {
+        setConfiguredBaseUrl(String(settingsResult.value.config.base_url || "").replace(/\/$/, ""));
+      }
+      if (sessionResult.status === "fulfilled") {
+        setAuthKey(sessionResult.value?.key || "");
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const apiBaseUrl = configuredBaseUrl || webConfig.apiUrl.replace(/\/$/, "") || browserBaseUrl;

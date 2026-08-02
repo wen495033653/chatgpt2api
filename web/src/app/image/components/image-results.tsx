@@ -97,8 +97,8 @@ export function ImageResults({
   onDismissErrors,
   formatConversationTime,
 }: ImageResultsProps) {
-  const imageDimensionsRef = useRef<Record<string, string>>({});
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [imageDimensions, setImageDimensions] = useState<Record<string, string>>({});
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
   
   // 仅在存在 loading 图片时启动定时器，避免空闲时无谓重渲染
   const hasLoadingImages = selectedConversation?.turns.some(
@@ -114,10 +114,7 @@ export function ImageResults({
 
   const updateImageDimensions = (id: string, width: number, height: number) => {
     const dimensions = formatImageDimensions(width, height);
-    // 使用 ref 存储，不触发 React 重渲染，消除级联重渲染
-    if (imageDimensionsRef.current[id] !== dimensions) {
-      imageDimensionsRef.current[id] = dimensions;
-    }
+    setImageDimensions((current) => current[id] === dimensions ? current : { ...current, [id]: dimensions });
   };
 
   if (!selectedConversation) {
@@ -160,7 +157,7 @@ export function ImageResults({
                   id: image.id,
                   src,
                   sizeLabel: image.b64_json ? formatBase64ImageSize(image.b64_json) : undefined,
-                  dimensions: imageDimensionsRef.current[image.id],
+                  dimensions: imageDimensions[image.id],
                 },
               ]
             : [];
@@ -251,7 +248,7 @@ export function ImageResults({
                       if (image.status === "success" && imageSrc) {
                         const currentIndex = successfulTurnImages.findIndex((item) => item.id === image.id);
                         const sizeLabel = image.b64_json ? formatBase64ImageSize(image.b64_json) : "";
-                        const dimensions = imageDimensionsRef.current[image.id];
+                        const dimensions = imageDimensions[image.id];
                         const imageMeta = [sizeLabel, dimensions].filter(Boolean).join(" · ");
 
                         return (
@@ -359,7 +356,7 @@ export function ImageResults({
                       const showElapsed = imageTaskStatus === "running" && image.elapsedSecs != null;
                       const elapsedDisplay = showElapsed
                         ? formatElapsed(
-                            image.elapsedUpdatedAt != null
+                            image.elapsedUpdatedAt != null && currentTime != null
                               ? image.elapsedSecs! + (currentTime - image.elapsedUpdatedAt!) / 1000
                               : image.elapsedSecs!,
                           )

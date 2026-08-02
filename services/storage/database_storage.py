@@ -4,7 +4,7 @@ import json
 from typing import Any
 
 from sqlalchemy import Column, String, Text, create_engine, Integer, text
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from services.storage.base import StorageBackend

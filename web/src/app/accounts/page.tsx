@@ -199,7 +199,6 @@ function AccountsPageContent() {
     message: "",
     email: "",
   });
-  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [refreshSummary, setRefreshSummary] = useState<Record<string, number | string> | null>(null);
 
   const loadAccounts = async (silent = false) => {
@@ -241,10 +240,6 @@ function AccountsPageContent() {
     void loadAccounts();
     void loadModels();
 
-    // 清理进度条定时器
-    return () => {
-      if (progressRef.current) clearInterval(progressRef.current);
-    };
   }, []);
 
   const filteredAccounts = useMemo(() => {
@@ -664,9 +659,11 @@ function AccountsPageContent() {
     setIsTestingProxy(true);
     try {
       const data = await testProxy(candidate);
-      data.result.ok
-        ? toast.success(`代理可用（${data.result.latency_ms} ms，HTTP ${data.result.status}）`)
-        : toast.error(`代理不可用：${data.result.error ?? "未知错误"}`);
+      if (data.result.ok) {
+        toast.success(`代理可用（${data.result.latency_ms} ms，HTTP ${data.result.status}）`);
+      } else {
+        toast.error(`代理不可用：${data.result.error ?? "未知错误"}`);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "测试代理失败");
     } finally {

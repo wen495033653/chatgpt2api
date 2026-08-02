@@ -42,7 +42,10 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState<StoredAuthSession | null | undefined>(undefined);
-  const [thirdPartyApps, setThirdPartyApps] = useState<ThirdPartyAppsSettings | null>(null);
+  const [thirdPartyAppsState, setThirdPartyAppsState] = useState<{
+    sessionKey: string;
+    settings: ThirdPartyAppsSettings | null;
+  } | null>(null);
   const [isCanvasDialogOpen, setIsCanvasDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -71,20 +74,18 @@ export function TopNav() {
   }, [pathname]);
 
   useEffect(() => {
-    if (!session) {
-      setThirdPartyApps(null);
-      return;
-    }
+    if (!session) return;
     let active = true;
+    const sessionKey = session.key;
     const load = async () => {
       try {
         const data = await fetchThirdPartyApps();
         if (active) {
-          setThirdPartyApps(data.third_party_apps);
+          setThirdPartyAppsState({ sessionKey, settings: data.third_party_apps });
         }
       } catch {
         if (active) {
-          setThirdPartyApps(null);
+          setThirdPartyAppsState({ sessionKey, settings: null });
         }
       }
     };
@@ -111,6 +112,7 @@ export function TopNav() {
   const roleLabel = session.role === "admin" ? "管理员" : "普通用户";
   const displayName = session.name.trim() || roleLabel;
   const baseUrl = webConfig.apiUrl.replace(/\/$/, "") || window.location.origin;
+  const thirdPartyApps = thirdPartyAppsState?.sessionKey === session.key ? thirdPartyAppsState.settings : null;
   const canvas = thirdPartyApps?.infinite_canvas;
   const canvasHref = canvas?.enabled && canvas.url.trim() ? buildThirdPartyHref(canvas.url, baseUrl, session.key) : "";
   const canvasDisplayHref = canvasHref ? decodeURIComponent(canvasHref) : "";

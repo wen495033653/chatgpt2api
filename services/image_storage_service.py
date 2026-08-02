@@ -197,7 +197,7 @@ class ImageStorageService:
         return f"{(base_url or config.base_url).rstrip('/')}/images/{_safe_relative_path(rel)}"
 
     def make_relative_path(self, image_data: bytes) -> str:
-        file_hash = hashlib.md5(image_data).hexdigest()
+        file_hash = hashlib.md5(image_data, usedforsecurity=False).hexdigest()
         filename = f"{int(time.time())}_{file_hash}.png"
         relative_dir = Path(time.strftime("%Y"), time.strftime("%m"), time.strftime("%d"))
         return f"{relative_dir.as_posix()}/{filename}"
